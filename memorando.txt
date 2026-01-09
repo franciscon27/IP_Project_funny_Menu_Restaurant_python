@@ -1,0 +1,5 @@
+
+Ativar virtual environment com o nome venv para ser mais fácil
+source venv/bin/activate
+Executar o programa
+python menu_restaurante.py
