@@ -2,7 +2,7 @@
 Ativar virtual environment com o nome venv para ser mais fácil
 source venv/bin/activate
 Executar o programa
-python menu_restaurante.py
+venv/bin/python menu_restaurante.py
 
 python 3.12(recomendado para windows)
 pygame 
