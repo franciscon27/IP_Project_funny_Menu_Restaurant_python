@@ -166,9 +166,9 @@ itens_agrupados = [
     └───────┬────────────────────────┘
             │
     ┌───────▼────────────────────────┐
-    │ 5. ATUALIZAR DISPLAY            │
-    │    pygame.display.flip()         │
-    │    pygame.display.update()       │
+    │ 5. ATUALIZAR DISPLAY           │
+    │    pygame.display.flip()       │
+    │    pygame.display.update()     │
     └───────┬────────────────────────┘
             │
             │  Repetir 60 vezes por segundo
