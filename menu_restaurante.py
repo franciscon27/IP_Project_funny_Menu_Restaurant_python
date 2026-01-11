@@ -103,12 +103,14 @@ pedido = []
 scroll_y = 0  # Posição atual do scroll no menu
 scroll_pedido_y = 0  # Posição atual do scroll no pedido
 scroll_conta_y = 0  # Posição atual do scroll na conta
-estado_atual = "menu"  # "menu", "pedido", "conta", "popup_remover"
+estado_atual = "menu"  # "menu", "pedido", "conta"
 item_selecionado = None  # Índice do item selecionado no menu
 item_pedido_selecionado = None  # Índice do item selecionado no pedido
 quantidade_a_remover = 1  # Quantidade a remover no pop-up
 popup_visivel = False  # Controla se o pop-up está visível
 item_para_remover = None  # Informação do item a remover (quando em pop-up)
+popup_tipo = None  # Tipo de pop-up: "remover" ou "pagamento"
+metodo_pagamento = None  # Método de pagamento escolhido: "numerario" ou "cartao"
 
 # ================================
 # Classes para a interface
@@ -188,7 +190,7 @@ class ItemMenu:
         tela.blit(preco_surf, preco_rect)
         
         # Definir retângulo para detecção de clique
-        self.rect = pygame.Rect(x-10, y-5, tela.get_width() - 140, 35)
+        self.rect = pygame.Rect(x-10, y-5, tela.get_width() - 140, 40)
         
         # Desenhar retângulo de seleção se item está selecionado
         if self.selecionado:
@@ -328,6 +330,11 @@ def calcular_total_pedido():
     """Calcula e retorna o total de preço de todos os itens no pedido."""
     return sum(preco for _, preco, _ in pedido)
 
+def sair_programa():
+    """Fecha a aplicação e sai do programa."""
+    pygame.quit()
+    sys.exit()
+
 # ================================
 # INICIALIZAÇÃO E GESTÃO DE ESTADO
 # ================================
@@ -353,10 +360,11 @@ def criar_botoes():
     espacamento = (LARGURA - (4 * botao_largura)) // 5
     
     if estado_atual == "menu":
-        # Botões do menu principal: Ver Pedido, Adicionar, Finalizar
+        # Botões do menu principal: Ver Pedido, Adicionar, Finalizar, Sair
         botoes.append(Botao(espacamento, ALTURA - 100, botao_largura, 60, "Ver Pedido", mudar_para_pedido))
         botoes.append(Botao(espacamento * 2 + botao_largura, ALTURA - 100, botao_largura, 60, "Adicionar", adicionar_item_ui))
         botoes.append(Botao(espacamento * 3 + botao_largura * 2, ALTURA - 100, botao_largura, 60, "Finalizar", finalizar_pedido_ui))
+        botoes.append(Botao(espacamento * 4 + botao_largura * 3, ALTURA - 100, botao_largura, 60, "Sair", sair_programa))
         
     elif estado_atual == "pedido":
         # Botões da tela do pedido: Voltar, Remover, Limpar, Finalizar
@@ -366,8 +374,11 @@ def criar_botoes():
         botoes.append(Botao(espacamento * 4 + botao_largura * 3, ALTURA - 100, botao_largura, 60, "Finalizar", finalizar_pedido_ui))
     
     elif estado_atual == "conta":
-        # Botão da tela da conta: Novo Pedido
-        botoes.append(Botao(LARGURA//2 - botao_largura//2, ALTURA - 100, botao_largura, 60, "Novo Pedido", novo_pedido))
+        # Botões da tela da conta: Novo Pedido, Sair
+        botao_largura_pequeno = min(180, LARGURA // 4 - 20)
+        espacamento_conta = (LARGURA - (2 * botao_largura_pequeno)) // 3
+        botoes.append(Botao(espacamento_conta, ALTURA - 100, botao_largura_pequeno, 60, "Novo Pedido", novo_pedido))
+        botoes.append(Botao(espacamento_conta * 2 + botao_largura_pequeno, ALTURA - 100, botao_largura_pequeno, 60, "Sair", sair_programa))
 
 def criar_itens_menu():
     """Cria objetos ItemMenu a partir dos dados"""
@@ -488,12 +499,13 @@ def novo_pedido():
     Limpa o pedido atual e volta ao menu, permitindo iniciar um novo pedido.
     Chamado após o cliente finalizar e ver a conta.
     """
-    global estado_atual, pedido, item_selecionado, scroll_y, scroll_conta_y
+    global estado_atual, pedido, item_selecionado, scroll_y, scroll_conta_y, metodo_pagamento
     estado_atual = "menu"
     pedido.clear()
     item_selecionado = None
     scroll_y = 0
     scroll_conta_y = 0
+    metodo_pagamento = None  # Resetar método de pagamento para próximo pedido
     criar_botoes()
 
 def adicionar_item_ui():
@@ -511,7 +523,7 @@ def iniciar_remocao():
     Se o item tem apenas 1 unidade, remove diretamente.
     Se tem múltiplas, abre um pop-up para escolher a quantidade.
     """
-    global popup_visivel, item_para_remover, quantidade_a_remover
+    global popup_visivel, popup_tipo, item_para_remover, quantidade_a_remover
     
     if item_pedido_selecionado is not None:
         item_info = itens_pedido_obj[item_pedido_selecionado]
@@ -523,6 +535,7 @@ def iniciar_remocao():
         else:
             # Abrir pop-up para escolher quantidade
             popup_visivel = True
+            popup_tipo = "remover"
             item_para_remover = item_info
             quantidade_a_remover = 1
 
@@ -563,7 +576,7 @@ def remover_item_pedido(item_info, quantidade=1):
 
 def confirmar_remocao():
     """Confirma a remoção com a quantidade especificada no pop-up."""
-    global popup_visivel, quantidade_a_remover, item_para_remover
+    global popup_visivel, popup_tipo, quantidade_a_remover, item_para_remover
     
     if item_para_remover:
         # Verificar se quantidade é válida
@@ -572,13 +585,15 @@ def confirmar_remocao():
     
     # Fechar pop-up e resetar valores
     popup_visivel = False
+    popup_tipo = None
     item_para_remover = None
     quantidade_a_remover = 1
 
 def cancelar_remocao():
     """Cancela o processo de remoção e fecha o pop-up."""
-    global popup_visivel, item_para_remover, quantidade_a_remover
+    global popup_visivel, popup_tipo, item_para_remover, quantidade_a_remover
     popup_visivel = False
+    popup_tipo = None
     item_para_remover = None
     quantidade_a_remover = 1
 
@@ -596,14 +611,45 @@ def limpar_pedido():
     item_pedido_selecionado = None
     criar_itens_pedido()
 
+def abrir_popup_pagamento():
+    """Abre o pop-up para o utilizador escolher o método de pagamento."""
+    global popup_visivel, popup_tipo
+    popup_visivel = True
+    popup_tipo = "pagamento"
+
+def confirmar_pagamento_numerario():
+    """Confirma pagamento em numerário e vai para a conta."""
+    global metodo_pagamento, popup_visivel, popup_tipo, estado_atual, scroll_conta_y
+    metodo_pagamento = "numerario"
+    popup_visivel = False
+    popup_tipo = None
+    estado_atual = "conta"
+    scroll_conta_y = 0
+    criar_botoes()
+    criar_conta_scrollbar()
+
+def confirmar_pagamento_cartao():
+    """Confirma pagamento em cartão e vai para a conta."""
+    global metodo_pagamento, popup_visivel, popup_tipo, estado_atual, scroll_conta_y
+    metodo_pagamento = "cartao"
+    popup_visivel = False
+    popup_tipo = None
+    estado_atual = "conta"
+    scroll_conta_y = 0
+    criar_botoes()
+    criar_conta_scrollbar()
+
+def cancelar_popup_pagamento():
+    """Cancela o pop-up de pagamento e volta ao pedido."""
+    global popup_visivel, popup_tipo
+    popup_visivel = False
+    popup_tipo = None
+
 def finalizar_pedido_ui():
-    """Valida o pedido e muda para a tela de conta final se há itens."""
-    global estado_atual, scroll_conta_y
+    """Valida o pedido e abre o pop-up de pagamento se há itens."""
+    global popup_visivel, popup_tipo
     if pedido:  # Só finalizar se há itens no pedido
-        estado_atual = "conta"
-        scroll_conta_y = 0
-        criar_botoes()
-        criar_conta_scrollbar()
+        abrir_popup_pagamento()
 
 # ================================
 # FUNÇÕES AUXILIARES DE DESENHO
@@ -841,125 +887,208 @@ def desenhar_pedido(tela, eventos):
     if scrollbar_pedido and scrollbar_pedido.scroll_max > 0:
         scrollbar_pedido.desenhar(tela)
 
-def desenhar_popup_remover(tela):
+def desenhar_popup(tela):
     """
-    Desenha um pop-up modal para confirmar a remoção de múltiplos itens.
-    Permite ao utilizador escolher quantas unidades deseja remover.
+    Desenha um pop-up modal genérico que se adapta ao tipo de popup.
+    Tipos suportados: "remover" (quantidade de itens), "pagamento" (escolha método)
     
     Retorna um dicionário com os retângulos dos botões para deteção de clique.
     """
-    global quantidade_a_remover
+    global quantidade_a_remover, popup_tipo
     
     # Desenhar fundo semi-transparente para escurecer a tela atrás
     overlay = pygame.Surface((LARGURA, ALTURA), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 150))  # 150 = nível de transparência
     tela.blit(overlay, (0, 0))
     
-    # Dimensões e posição do pop-up
+    # Dimensões base do pop-up
     popup_largura = 550
     popup_altura = 380
     popup_x = (LARGURA - popup_largura) // 2
     popup_y = (ALTURA - popup_altura) // 2
     
-    # Desenhar fundo do pop-up com borda
-    pygame.draw.rect(tela, COR_POPUP_FUNDO, (popup_x, popup_y, popup_largura, popup_altura), border_radius=15)
-    pygame.draw.rect(tela, COR_POPUP_BORDA, (popup_x, popup_y, popup_largura, popup_altura), 3, border_radius=15)
-    
-    # Desenhar título
-    titulo = "Quantos itens pretende remover?"
-    titulo_surf = FONTE_POPUP.render(titulo, True, COR_POPUP_TEXTO)
-    titulo_x = popup_x + (popup_largura - titulo_surf.get_width()) // 2
-    titulo_y = popup_y + 30
-    tela.blit(titulo_surf, (titulo_x, titulo_y))
-    
-    # Informação do item a remover
-    if item_para_remover:
-        # Desenhar nome do item
-        item_texto = f"{item_para_remover['nome']}"
-        item_surf = FONTE_POPUP_PEQUENA.render(item_texto, True, COR_POPUP_TEXTO)
-        item_x = popup_x + (popup_largura - item_surf.get_width()) // 2
-        tela.blit(item_surf, (item_x, popup_y + 80))
+    # ========================
+    # POP-UP DE REMOÇÃO DE ITENS
+    # ========================
+    if popup_tipo == "remover":
+        # Desenhar fundo do pop-up com borda
+        pygame.draw.rect(tela, COR_POPUP_FUNDO, (popup_x, popup_y, popup_largura, popup_altura), border_radius=15)
+        pygame.draw.rect(tela, COR_POPUP_BORDA, (popup_x, popup_y, popup_largura, popup_altura), 3, border_radius=15)
         
-        # Desenhar quantidade disponível no pedido
-        quantidade_texto = f"Quantidade no pedido: {item_para_remover['quantidade']}"
-        quantidade_surf = FONTE_POPUP_PEQUENA.render(quantidade_texto, True, COR_TEXTO_SECUNDARIO)
-        quantidade_x = popup_x + (popup_largura - quantidade_surf.get_width()) // 2
-        tela.blit(quantidade_surf, (quantidade_x, popup_y + 120))
+        # Desenhar título
+        titulo = "Quantos itens pretende remover?"
+        titulo_surf = FONTE_POPUP.render(titulo, True, COR_POPUP_TEXTO)
+        titulo_x = popup_x + (popup_largura - titulo_surf.get_width()) // 2
+        titulo_y = popup_y + 30
+        tela.blit(titulo_surf, (titulo_x, titulo_y))
+        
+        # Informação do item a remover
+        if item_para_remover:
+            # Desenhar nome do item
+            item_texto = f"{item_para_remover['nome']}"
+            item_surf = FONTE_POPUP_PEQUENA.render(item_texto, True, COR_POPUP_TEXTO)
+            item_x = popup_x + (popup_largura - item_surf.get_width()) // 2
+            tela.blit(item_surf, (item_x, popup_y + 80))
+            
+            # Desenhar quantidade disponível no pedido
+            quantidade_texto = f"Quantidade no pedido: {item_para_remover['quantidade']}"
+            quantidade_surf = FONTE_POPUP_PEQUENA.render(quantidade_texto, True, COR_TEXTO_SECUNDARIO)
+            quantidade_x = popup_x + (popup_largura - quantidade_surf.get_width()) // 2
+            tela.blit(quantidade_surf, (quantidade_x, popup_y + 120))
+        
+        # Rótulo para a quantidade a remover
+        qtd_texto = f"Quantidade a remover:"
+        qtd_surf = FONTE_POPUP_PEQUENA.render(qtd_texto, True, COR_POPUP_TEXTO)
+        qtd_x = popup_x + (popup_largura - qtd_surf.get_width()) // 2
+        tela.blit(qtd_surf, (qtd_x, popup_y + 180))
+        
+        # Desenhar valor da quantidade (grande e destacado)
+        valor_qtd_texto = f"{quantidade_a_remover}"
+        valor_qtd_surf = FONTE_CATEGORIA.render(valor_qtd_texto, True, COR_DESTAQUE)
+        valor_qtd_x = popup_x + (popup_largura - valor_qtd_surf.get_width()) // 2
+        tela.blit(valor_qtd_surf, (valor_qtd_x, popup_y + 210))
+        
+        # Criar botões para controlar a quantidade (- e +)
+        btn_tamanho = 50
+        espacamento_btns = 80
+        
+        # Botão "-" (diminuir quantidade)
+        menos_x = valor_qtd_x - espacamento_btns - btn_tamanho//2
+        menos_y = popup_y + 210 + valor_qtd_surf.get_height()//2 - btn_tamanho//2
+        menos_rect = pygame.Rect(menos_x, menos_y, btn_tamanho, btn_tamanho)
+        
+        # Botão "+" (aumentar quantidade)
+        mais_x = valor_qtd_x + espacamento_btns - btn_tamanho//2
+        mais_y = popup_y + 210 + valor_qtd_surf.get_height()//2 - btn_tamanho//2
+        mais_rect = pygame.Rect(mais_x, mais_y, btn_tamanho, btn_tamanho)
+        
+        # Desenhar os botões - e +
+        pygame.draw.rect(tela, COR_BOTAO, menos_rect, border_radius=25)
+        pygame.draw.rect(tela, COR_BOTAO, mais_rect, border_radius=25)
+        
+        # Desenhar símbolos nos botões
+        menos_text = FONTE_BOTAO.render("-", True, COR_TEXTO)
+        mais_text = FONTE_BOTAO.render("+", True, COR_TEXTO)
+        
+        tela.blit(menos_text, (menos_rect.centerx - menos_text.get_width()//2, 
+                               menos_rect.centery - menos_text.get_height()//2))
+        tela.blit(mais_text, (mais_rect.centerx - mais_text.get_width()//2, 
+                              mais_rect.centery - mais_text.get_height()//2))
+        
+        # Criar botões de ação (Cancelar e Confirmar)
+        btn_altura = 50
+        btn_largura = 180
+        espacamento = 40
+        
+        # Botão Cancelar (à esquerda)
+        cancelar_btn = pygame.Rect(popup_x + espacamento, 
+                                   popup_y + popup_altura - btn_altura - 30, 
+                                   btn_largura, btn_altura)
+        
+        # Botão Confirmar (à direita)
+        confirmar_btn = pygame.Rect(popup_x + popup_largura - btn_largura - espacamento, 
+                                    popup_y + popup_altura - btn_altura - 30, 
+                                    btn_largura, btn_altura)
+        
+        # Desenhar os botões de ação
+        pygame.draw.rect(tela, COR_BOTAO, cancelar_btn, border_radius=10)
+        pygame.draw.rect(tela, COR_BOTAO_HOVER, confirmar_btn, border_radius=10)
+        
+        # Desenhar texto dos botões
+        cancelar_text = FONTE_BOTAO.render("Cancelar", True, COR_TEXTO)
+        confirmar_text = FONTE_BOTAO.render("Confirmar", True, COR_TEXTO)
+        
+        tela.blit(cancelar_text, (cancelar_btn.centerx - cancelar_text.get_width()//2, 
+                                  cancelar_btn.centery - cancelar_text.get_height()//2))
+        tela.blit(confirmar_text, (confirmar_btn.centerx - confirmar_text.get_width()//2, 
+                                   confirmar_btn.centery - confirmar_text.get_height()//2))
+        
+        # Retornar dicionário com botões do pop-up remover
+        return {
+            'menos': menos_rect,
+            'mais': mais_rect,
+            'cancelar': cancelar_btn,
+            'confirmar': confirmar_btn
+        }
     
-    # Rótulo para a quantidade a remover
-    qtd_texto = f"Quantidade a remover:"
-    qtd_surf = FONTE_POPUP_PEQUENA.render(qtd_texto, True, COR_POPUP_TEXTO)
-    qtd_x = popup_x + (popup_largura - qtd_surf.get_width()) // 2
-    tela.blit(qtd_surf, (qtd_x, popup_y + 180))
+    # ========================
+    # POP-UP DE ESCOLHA DE PAGAMENTO
+    # ========================
+    elif popup_tipo == "pagamento":
+        # Ajustar altura do pop-up para pagamento
+        popup_altura = 320
+        popup_y = (ALTURA - popup_altura) // 2
+        
+        # Desenhar fundo do pop-up com borda
+        pygame.draw.rect(tela, COR_POPUP_FUNDO, (popup_x, popup_y, popup_largura, popup_altura), border_radius=15)
+        pygame.draw.rect(tela, COR_POPUP_BORDA, (popup_x, popup_y, popup_largura, popup_altura), 3, border_radius=15)
+        
+        # Desenhar título
+        titulo = "Escolha o método de pagamento"
+        titulo_surf = FONTE_POPUP.render(titulo, True, COR_POPUP_TEXTO)
+        titulo_x = popup_x + (popup_largura - titulo_surf.get_width()) // 2
+        titulo_y = popup_y + 30
+        tela.blit(titulo_surf, (titulo_x, titulo_y))
+        
+        # Botão para pagamento em numerário
+        btn_altura = 60
+        btn_largura = 200
+        espacamento_vertical = 20
+        
+        # Posição dos botões (verticalmente centrados)
+        y_botoes = popup_y + 100
+        
+        # Botão Numerário (esquerda)
+        numerario_btn = pygame.Rect(
+            popup_x + (popup_largura // 2 - btn_largura - espacamento_vertical // 2),
+            y_botoes,
+            btn_largura,
+            btn_altura
+        )
+        
+        # Botão Cartão (direita)
+        cartao_btn = pygame.Rect(
+            popup_x + (popup_largura // 2 + espacamento_vertical // 2),
+            y_botoes,
+            btn_largura,
+            btn_altura
+        )
+        
+        # Desenhar botões
+        pygame.draw.rect(tela, COR_BOTAO, numerario_btn, border_radius=10)
+        pygame.draw.rect(tela, COR_BOTAO, cartao_btn, border_radius=10)
+        
+        # Desenhar texto dos botões
+        numerario_text = FONTE_BOTAO.render("Numerário", True, COR_TEXTO)
+        cartao_text = FONTE_BOTAO.render("Cartão", True, COR_TEXTO)
+        
+        tela.blit(numerario_text, (numerario_btn.centerx - numerario_text.get_width()//2,
+                                   numerario_btn.centery - numerario_text.get_height()//2))
+        tela.blit(cartao_text, (cartao_btn.centerx - cartao_text.get_width()//2,
+                               cartao_btn.centery - cartao_text.get_height()//2))
+        
+        # Botão Cancelar (na base)
+        cancelar_btn = pygame.Rect(
+            popup_x + (popup_largura - btn_largura) // 2,
+            popup_y + popup_altura - btn_altura - 30,
+            btn_largura,
+            btn_altura
+        )
+        
+        # Desenhar botão cancelar
+        pygame.draw.rect(tela, (80, 80, 80), cancelar_btn, border_radius=10)
+        cancelar_text = FONTE_BOTAO.render("Cancelar", True, COR_TEXTO)
+        tela.blit(cancelar_text, (cancelar_btn.centerx - cancelar_text.get_width()//2,
+                                 cancelar_btn.centery - cancelar_text.get_height()//2))
+        
+        # Retornar dicionário com botões do pop-up pagamento
+        return {
+            'numerario': numerario_btn,
+            'cartao': cartao_btn,
+            'cancelar': cancelar_btn
+        }
     
-    # Desenhar valor da quantidade (grande e destacado)
-    valor_qtd_texto = f"{quantidade_a_remover}"
-    valor_qtd_surf = FONTE_CATEGORIA.render(valor_qtd_texto, True, COR_DESTAQUE)
-    valor_qtd_x = popup_x + (popup_largura - valor_qtd_surf.get_width()) // 2
-    tela.blit(valor_qtd_surf, (valor_qtd_x, popup_y + 210))
-    
-    # Criar botões para controlar a quantidade (- e +)
-    btn_tamanho = 50
-    espacamento_btns = 80
-    
-    # Botão "-" (diminuir quantidade)
-    menos_x = valor_qtd_x - espacamento_btns - btn_tamanho//2
-    menos_y = popup_y + 210 + valor_qtd_surf.get_height()//2 - btn_tamanho//2
-    menos_rect = pygame.Rect(menos_x, menos_y, btn_tamanho, btn_tamanho)
-    
-    # Botão "+" (aumentar quantidade)
-    mais_x = valor_qtd_x + espacamento_btns - btn_tamanho//2
-    mais_y = popup_y + 210 + valor_qtd_surf.get_height()//2 - btn_tamanho//2
-    mais_rect = pygame.Rect(mais_x, mais_y, btn_tamanho, btn_tamanho)
-    
-    # Desenhar os botões - e +
-    pygame.draw.rect(tela, COR_BOTAO, menos_rect, border_radius=25)
-    pygame.draw.rect(tela, COR_BOTAO, mais_rect, border_radius=25)
-    
-    # Desenhar símbolos nos botões
-    menos_text = FONTE_BOTAO.render("-", True, COR_TEXTO)
-    mais_text = FONTE_BOTAO.render("+", True, COR_TEXTO)
-    
-    tela.blit(menos_text, (menos_rect.centerx - menos_text.get_width()//2, 
-                           menos_rect.centery - menos_text.get_height()//2))
-    tela.blit(mais_text, (mais_rect.centerx - mais_text.get_width()//2, 
-                          mais_rect.centery - mais_text.get_height()//2))
-    
-    # Criar botões de ação (Cancelar e Confirmar)
-    btn_altura = 50
-    btn_largura = 180
-    espacamento = 40
-    
-    # Botão Cancelar (à esquerda)
-    cancelar_btn = pygame.Rect(popup_x + espacamento, 
-                               popup_y + popup_altura - btn_altura - 30, 
-                               btn_largura, btn_altura)
-    
-    # Botão Confirmar (à direita)
-    confirmar_btn = pygame.Rect(popup_x + popup_largura - btn_largura - espacamento, 
-                                popup_y + popup_altura - btn_altura - 30, 
-                                btn_largura, btn_altura)
-    
-    # Desenhar os botões de ação
-    pygame.draw.rect(tela, COR_BOTAO, cancelar_btn, border_radius=10)
-    pygame.draw.rect(tela, COR_BOTAO_HOVER, confirmar_btn, border_radius=10)
-    
-    # Desenhar texto dos botões
-    cancelar_text = FONTE_BOTAO.render("Cancelar", True, COR_TEXTO)
-    confirmar_text = FONTE_BOTAO.render("Confirmar", True, COR_TEXTO)
-    
-    tela.blit(cancelar_text, (cancelar_btn.centerx - cancelar_text.get_width()//2, 
-                              cancelar_btn.centery - cancelar_text.get_height()//2))
-    tela.blit(confirmar_text, (confirmar_btn.centerx - confirmar_text.get_width()//2, 
-                               confirmar_btn.centery - confirmar_text.get_height()//2))
-    
-    # Retornar dicionário com todos os botões clicáveis do pop-up
-    return {
-        'menos': menos_rect,
-        'mais': mais_rect,
-        'cancelar': cancelar_btn,
-        'confirmar': confirmar_btn
-    }
+    return {}
 
 def desenhar_conta(tela, eventos):
     """
@@ -1027,6 +1156,14 @@ def desenhar_conta(tela, eventos):
                         tela.blit(total_surf, (LARGURA//2 - total_surf.get_width()//2, y))
                         y += 60
                         
+                        # Desenhar método de pagamento escolhido
+                        if metodo_pagamento:
+                            metodo_texto = "Pagamento em Numerário" if metodo_pagamento == "numerario" else "Pagamento em Cartão"
+                            metodo_surf = FONTE_POPUP.render(metodo_texto, True, COR_TEXTO_SECUNDARIO)
+                            if y > 120 - 50 and y < ALTURA - 80:
+                                tela.blit(metodo_surf, (LARGURA//2 - metodo_surf.get_width()//2, y))
+                                y += 50
+                        
                         # Desenhar mensagem de agradecimento
                         obrigado_surf = FONTE_ITEM.render("Obrigado! Volte sempre!", True, COR_TEXTO_SECUNDARIO)
                         if y > 120 - 60 and y < ALTURA - 80:
@@ -1051,8 +1188,11 @@ def desenhar_rodape(tela):
         qtd_surf = FONTE_PEDIDO.render(qtd_texto, True, COR_TEXTO_SECUNDARIO)
         tela.blit(qtd_surf, (LARGURA - 250, y))
         
-        # Mostrar instruções
-        instr_texto = "Clique em um item para selecionar • Use a roda do mouse para scroll"
+        # Mostrar instruções (dinâmicas baseado em seleção)
+        if item_selecionado is not None:
+            instr_texto = "Item Selecionado. Clique em \"Adicionar\" para adicionar."
+        else:
+            instr_texto = "Clique em um item para selecionar • Use a roda do mouse para scroll"
         instr_surf = FONTE_PEDIDO.render(instr_texto, True, COR_TEXTO_SECUNDARIO)
         tela.blit(instr_surf, (50, y))
     
@@ -1128,21 +1268,35 @@ def main():
                 if event.button == 1:  # Botão esquerdo do mouse
                     # Se pop-up está visível, processar cliques nele primeiro
                     if popup_visivel:
-                        # Verificar cliques nos botões do pop-up
-                        if 'menos' in popup_botoes and popup_botoes['menos'].collidepoint(pos_mouse):
-                            # Botão para diminuir quantidade
-                            if quantidade_a_remover > 1:
-                                quantidade_a_remover -= 1
-                        elif 'mais' in popup_botoes and popup_botoes['mais'].collidepoint(pos_mouse):
-                            # Botão para aumentar quantidade
-                            if item_para_remover and quantidade_a_remover < item_para_remover['quantidade']:
-                                quantidade_a_remover += 1
-                        elif 'cancelar' in popup_botoes and popup_botoes['cancelar'].collidepoint(pos_mouse):
-                            # Botão para cancelar a remoção
-                            cancelar_remocao()
-                        elif 'confirmar' in popup_botoes and popup_botoes['confirmar'].collidepoint(pos_mouse):
-                            # Botão para confirmar a remoção
-                            confirmar_remocao()
+                        # ===== POP-UP DE REMOÇÃO =====
+                        if popup_tipo == "remover":
+                            if 'menos' in popup_botoes and popup_botoes['menos'].collidepoint(pos_mouse):
+                                # Botão para diminuir quantidade
+                                if quantidade_a_remover > 1:
+                                    quantidade_a_remover -= 1
+                            elif 'mais' in popup_botoes and popup_botoes['mais'].collidepoint(pos_mouse):
+                                # Botão para aumentar quantidade
+                                if item_para_remover and quantidade_a_remover < item_para_remover['quantidade']:
+                                    quantidade_a_remover += 1
+                            elif 'cancelar' in popup_botoes and popup_botoes['cancelar'].collidepoint(pos_mouse):
+                                # Botão para cancelar a remoção
+                                cancelar_remocao()
+                            elif 'confirmar' in popup_botoes and popup_botoes['confirmar'].collidepoint(pos_mouse):
+                                # Botão para confirmar a remoção
+                                confirmar_remocao()
+                        
+                        # ===== POP-UP DE PAGAMENTO =====
+                        elif popup_tipo == "pagamento":
+                            if 'numerario' in popup_botoes and popup_botoes['numerario'].collidepoint(pos_mouse):
+                                # Botão pagamento em numerário
+                                confirmar_pagamento_numerario()
+                            elif 'cartao' in popup_botoes and popup_botoes['cartao'].collidepoint(pos_mouse):
+                                # Botão pagamento em cartão
+                                confirmar_pagamento_cartao()
+                            elif 'cancelar' in popup_botoes and popup_botoes['cancelar'].collidepoint(pos_mouse):
+                                # Botão para cancelar (voltar ao pedido)
+                                cancelar_popup_pagamento()
+                        
                         # Não processar mais cliques se o pop-up está aberto
                         continue
                     
@@ -1223,7 +1377,7 @@ def main():
         
         # Desenhar pop-up de confirmação se estiver visível
         if popup_visivel:
-            popup_botoes = desenhar_popup_remover(TELA)
+            popup_botoes = desenhar_popup(TELA)
         
         # Atualizar a tela para mostrar o desenho
         pygame.display.flip()

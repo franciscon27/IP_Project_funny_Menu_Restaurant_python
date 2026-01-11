@@ -28,6 +28,8 @@ Este é um projeto educacional que demonstra conceitos avançados de programaç�
 - ✅ Apresentação profissional de todos os itens do pedido
 - ✅ Agrupamento inteligente de itens iguais
 - ✅ Cálculo preciso do total a pagar
+- ✅ **Escolha de método de pagamento** (Numerário ou Cartão)
+- ✅ **Exibição do método de pagamento escolhido** na conta final
 - ✅ Opção para iniciar um novo pedido
 
 ---
@@ -86,11 +88,13 @@ Este é um projeto educacional que demonstra conceitos avançados de programaç�
 - **Agrupamento dinâmico** de itens iguais com contagem
 - **Cálculos automáticos** baseados em dados estruturados
 
-### 6. **Interface Modal**
-- **Pop-up modal** para confirmação de remoção de itens
+### 6. **Interface Modal Genérica**
+- **Pop-up modal reutilizável** com suporte para múltiplos tipos
 - **Overlay semi-transparente** que escurece fundo e bloqueia interação
-- **Controles interativos** dentro do pop-up (+/-, confirmar, cancelar)
-- Impede operações acidentais
+- **Dois tipos implementados:**
+  - **Pop-up de Remoção:** Controles +/- para ajustar quantidade
+  - **Pop-up de Pagamento:** Botões para escolher método de pagamento
+- **Impede operações acidentais** com confirmações
 
 ---
 
@@ -130,39 +134,39 @@ itens_agrupados = [
 └───────────┬──────────┘
             │
     ┌───────▼──────────────────────┐
-    │  LOOP PRINCIPAL (60 FPS)      │
-    │  pygame.time.Clock()          │
+    │  LOOP PRINCIPAL (60 FPS)     │
+    │  pygame.time.Clock()         │
     └───────┬──────────────────────┘
             │
     ┌───────▼────────────────────────┐
     │ 1. PROCESSAR EVENTOS           │
-    │    • Mouse clicks               │
-    │    • Keyboard input             │
-    │    • Window resizing            │
-    │    • Wheel scroll               │
+    │    • Mouse clicks              │
+    │    • Keyboard input            │
+    │    • Window resizing           │
+    │    • Wheel scroll              │
     └───────┬────────────────────────┘
             │
     ┌───────▼────────────────────────┐
-    │ 2. ATUALIZAR ESTADO             │
-    │    • Scroll positions            │
-    │    • Button hover effects        │
-    │    • Seleções                    │
-    │    • Scroll da scrollbar         │
+    │ 2. ATUALIZAR ESTADO            │
+    │    • Scroll positions          │
+    │    • Button hover effects      │
+    │    • Seleções                  │
+    │    • Scroll da scrollbar       │
     └───────┬────────────────────────┘
             │
     ┌───────▼────────────────────────┐
-    │ 3. LIMPAR TELA                  │
-    │    pygame.display.fill()         │
+    │ 3. LIMPAR TELA                 │
+    │    pygame.display.fill()       │
     └───────┬────────────────────────┘
             │
     ┌───────▼────────────────────────┐
-    │ 4. DESENHAR INTERFACE           │
-    │    • Moldura decorativa         │
-    │    • Cabeçalho                  │
-    │    • Conteúdo (por estado)      │
-    │    • Botões                     │
-    │    • Rodapé                     │
-    │    • Pop-ups (se necessário)    │
+    │ 4. DESENHAR INTERFACE          │
+    │    • Moldura decorativa        │
+    │    • Cabeçalho                 │
+    │    • Conteúdo (por estado)     │
+    │    • Botões                    │
+    │    • Rodapé                    │
+    │    • Pop-ups (se necessário)   │
     └───────┬────────────────────────┘
             │
     ┌───────▼────────────────────────┐
@@ -232,7 +236,7 @@ Implementa **scrollbar vertical personalizada** com suporte completo.
 
 ### Gestão de Estado e Navegação
 | Função | Descrição | Impacto |
-|--------|-----------|--------|
+|--------|-----------|---------|
 | `mudar_para_menu()` | Transição para vista do menu | Reseta seleção, scroll |
 | `mudar_para_pedido()` | Transição para visualização do pedido | Agrega itens, recria botões |
 | `mudar_para_conta()` | Transição para conta final | Calcula total |
@@ -241,7 +245,7 @@ Implementa **scrollbar vertical personalizada** com suporte completo.
 
 ### Operações com Pedidos
 | Função | Descrição | Parâmetros |
-|--------|-----------|-----------|
+|--------|-----------|------------|
 | `adicionar_item_ui()` | Adiciona item selecionado ao pedido | Nenhum (usa global) |
 | `remover_item_pedido()` | Remove quantidade específica de um item | `item_info`, `quantidade` |
 | `iniciar_remocao()` | Abre diálogo de confirmação | Nenhum (usa global) |
@@ -260,13 +264,13 @@ Implementa **scrollbar vertical personalizada** com suporte completo.
 
 ### Renderização de Interface (Principais)
 | Função | Descrição | Responsabilidade |
-|--------|-----------|-----------------|
+|--------|-----------|------------------|
 | `desenhar_moldura()` | Moldura decorativa de madeira | Aspecto visual |
 | `desenhar_cabecalho()` | Cabeçalho com título | Navegação visual |
 | `desenhar_menu()` | Menu com scroll responsivo | Visualização menu |
 | `desenhar_pedido()` | Visualização do pedido | Visualização pedido |
 | `desenhar_conta()` | Conta final com total | Visualização conta |
-| `desenhar_popup_remover()` | Pop-up modal com controles | Confirmação ações |
+| `desenhar_popup()` | **Pop-up modal genérico** (remover/pagamento) | **Confirmação de ações** |
 | `desenhar_rodape()` | Informações contextuais | UX feedback |
 
 ### Auxiliares de Desenho (Reutilizáveis)
@@ -279,7 +283,7 @@ Implementa **scrollbar vertical personalizada** com suporte completo.
 
 ### Loop Principal e Controle
 | Função | Descrição | Frequência |
-|--------|-----------|-----------|
+|--------|-----------|------------|
 | `main()` | Loop principal (60 FPS) | Executa sempre |
 | `redimensionar_tela()` | Adapta interface a novo tamanho | Ao redimensionar |
 
@@ -507,10 +511,12 @@ python3 -c "from menu_restaurante import main; main()"
 | **Remover item** | Selecionar item + clicar "Remover" | Abre pop-up se múltiplas unidades |
 | **Ajustar quantidade** | Clicar +/- no pop-up | Altera quantidade a remover |
 | **Confirmar remoção** | Clicar "Confirmar" | Remove quantidade especificada |
+| **Finalizar pedido** | Clicar "Finalizar" | **Abre pop-up de pagamento** |
+| **Escolher pagamento** | Clicar "Numerário" ou "Cartão" | **Define método e vai para conta** |
 | **Scroll no menu** | Roda do mouse ou arrastar scrollbar | Navegação vertical |
 | **Redimensionar janela** | Arrastar canto da janela | Interface adapta-se |
-| **Finalizar pedido** | Clicar "Finalizar" | Vai para tela de conta |
 | **Novo pedido** | Clicar "Novo Pedido" (na conta) | Volta ao menu |
+| **Sair do programa** | **Clicar botão "Sair"** (menu ou conta) | **Fecha a aplicação** |
 
 ---
 
@@ -587,14 +593,22 @@ Este projeto é um **case study completo** da aplicação prática de conceitos:
 - Código bem organizado em **11 seções principais**
 - Cada componente é **independente e reutilizável**
 
+### Funcionalidades Recentes (v1.1)
+- ✅ **Sistema de Pop-up Genérico** - Uma única função `desenhar_popup()` reutilizável
+- ✅ **Pop-up de Pagamento** - Escolha entre Numerário ou Cartão/Débito
+- ✅ **Exibição de Método Pagamento** - Mostra escolha na conta final
+- ✅ **Melhor Organização de Código** - Suporta fácil adição de novos tipos de popup
+- ✅ **Botão Sair** - Permite fechar a aplicação a partir do menu ou conta final
+
 ### Possíveis Extensões
 - Adicionar persistência (guardar pedidos em BD)
 - Sistema de autenticação de utilizadores
 - Histórico de pedidos
 - Recomendações baseadas em histórico
-- Integração com sistema de pagamento
+- Integração com sistema de pagamento real
 - Modo de administrador para editar menu
 - Impressão de conta
+- Novos tipos de popup (confirmação genérica, etc)
 
 ---
 
@@ -617,4 +631,4 @@ Este projeto é fornecido **para fins educacionais**.
 
 **Última atualização:** Janeiro 2026  
 **Status:** ✅ Completo e Totalmente Funcional  
-**Versão:** 1.0 Final
+**Versão:** 1.1 - Com Sistema de Pop-ups Genérico
